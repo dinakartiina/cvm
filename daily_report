@@ -1,0 +1,221 @@
+with camp as --в подзапрос добавить кампании через union all, заполнив id, campaign name, channel, дата начала кампании, расписание
+(
+--campaign_1------------------------------------------------
+select '123' as camp_id,
+        'TLM' as channel,
+        'Product1_cross_model' as camp_name,
+        date'2024-11-06' as start_date,
+        'monthly_6th' as schedule
+from dual
+
+union all
+--campaign_2------------------------------------------------
+select '124' as camp_id,
+        'SMS' as channel,
+        'Product2_active_model' as camp_name,
+        date'2024-11-20' as start_date,
+        'daily' as schedule
+from dual
+
+union all
+--campaign_3------------------------------------------------
+select '125' as camp_id,
+        'PUSH' as channel,
+        'Product2_active_model' as camp_name,
+        date'2024-11-07' as start_date,
+        'every_Friday' as schedule
+from dual
+
+union all
+--campaign_4------------------------------------------------
+select '126' as camp_id,
+        'PUSH' as channel,
+        'Product3_active_model' as camp_name,
+        date'2024-11-07' as start_date,
+        'every_2w_Tuesday' as schedule
+from dual),
+--подзапрос под каждое расписание определяет дату след запуска
+--при необходимости добавить недостающие даты/дни недели по шаблону
+nc2 as
+(select camp.*,
+        case when 
+             schedule = 'monthly_6th'
+             then case when
+              to_char(sysdate-1,'dd') > 6
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-6','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 6
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 6
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-6','yyyy-mm-dd')
+                     else null end 
+               
+               when schedule = 'monthly_7th'
+                  then  case when
+              to_char(sysdate-1,'dd') > 7
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-7','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 7
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 7
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-7','yyyy-mm-dd')
+                     else null end 
+                      
+                      when schedule = 'monthly_13th'
+                  then  case when
+              to_char(sysdate-1,'dd') > 13
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-13','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 13
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 13
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-13','yyyy-mm-dd')
+                     else null end 
+                      
+                      when schedule = 'monthly_20th'
+                    then case when
+              to_char(sysdate-1,'dd') > 20
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-20','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 20
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 20
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-20','yyyy-mm-dd')
+                     else null end 
+                      
+                      when schedule = 'monthly_26th'
+                    then case when
+              to_char(sysdate-1,'dd') > 26
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-26','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 26
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 26
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-26','yyyy-mm-dd')
+                     else null end 
+                      
+                      when schedule = 'monthly_27th'
+                    then case when
+              to_char(sysdate-1,'dd') > 27
+           then to_date(to_char(add_months(trunc(sysdate-1),1),'yyyy-mm')|| '-27','yyyy-mm-dd')
+             when to_char(sysdate-1,'dd') = 27
+               then trunc(sysdate-1)
+                 when to_char(sysdate-1,'dd') < 27
+                   then to_date(to_char(trunc(sysdate-1),'yyyy-mm')|| '-27','yyyy-mm-dd')
+                     else null end 
+                      
+                      when schedule = 'every_Friday'
+             then case when to_char(trunc(sysdate-1),'d') = 7
+            then trunc(sysdate-1)
+              else next_day(trunc(sysdate-1),'FRIDAY') end
+               
+               when schedule = 'every_2w_Tuesday'
+             then case when
+            (14-mod(trunc(sysdate-1) - date'2024-09-10',14))=14
+            then trunc(sysdate-1)
+              else trunc(sysdate-1) + (14-mod(trunc(sysdate-1) - date'2024-09-10',14)) end
+               when schedule = 'daily'
+                 then trunc(sysdate-1)
+               else null end as next_planned_date
+from camp),
+--если кампания настроена так, что запуск переносится на след будний день
+--Казахстанские праздники до конца 2025 и выходные
+nc as
+(select nc2.*,
+        case when
+          schedule != 'daily'
+          then
+            case when
+          --праздники
+          next_planned_date = date'2024-10-25'
+          then date'2024-10-28'
+            when next_planned_date = date'2024-12-16'
+          then date'2024-12-17'
+            when next_planned_date = date'2025-01-01'
+              or next_planned_date = date'2025-01-02'
+          then date'2025-01-03'
+            when next_planned_date = date'2025-01-07'
+          then date'2025-01-08'
+            when next_planned_date = date'2025-03-21'
+              or next_planned_date = date'2025-03-24'
+              or next_planned_date = date'2025-03-25'
+          then date'2025-03-26'
+            when next_planned_date = date'2025-05-01'
+          then date'2025-05-02'
+            when next_planned_date = date'2025-05-07'
+          then date'2025-05-08'
+            when next_planned_date = date'2025-05-09'
+          then date'2025-05-12'
+            when next_planned_date = date'2025-06-06'
+          then date'2025-06-09'
+            when next_planned_date = date'2025-07-07'
+          then date'2025-07-08'
+            when next_planned_date = date'2025-09-01'
+          then date'2025-09-02'
+            when next_planned_date = date'2025-10-27'
+          then date'2025-10-28'
+            when next_planned_date = date'2025-12-16'
+          then date'2025-12-17'  
+            --обычные выходные      
+        when to_char(next_planned_date,'d') in ('6','7')
+             then 
+               next_day(next_planned_date,'MONDAY')
+               else next_planned_date end
+                else next_planned_date end as next_planned_date_new
+from nc2),
+--проверка фактической отправки в истории коммуникаций
+hb as
+(select t.campaign_id,
+        case when
+               channel in ('Push_old','Push_new') --скорректировать под актуальные названия каналов из истории коммуникаций
+               then 'PUSH'
+                 when channel in ('Telemarketing','TM')
+               then 'TLM'
+                 when channel in ('SMS','SMS_new')
+                   then 'SMS' --дополнить каналы при необходимости
+                 else null end as channel,
+        trunc(sent_date) as dt, --дата фактической отправки
+        count(distinct t.client_id) as sent, --количество отправленных
+        count(distinct case when
+                       status = 'OK'    
+                       then t.msisdn
+                         else null end) as delivered --успешно отправленные
+from contact_history t
+group by t.campaign_id,
+         case when
+               channel in ('Push_old','Push_new') --скорректировать под актуальные названия каналов из истории коммуникаций
+               then 'PUSH'
+                 when channel in ('Telemarketing','TM')
+               then 'TLM'
+                 when channel in ('SMS','SMS_new')
+                   then 'SMS' --дополнить каналы при необходимости
+                 else null end as channel,
+        trunc(sent_date) as dt, --дата фактической отправки
+),
+--берется последняя дата запуска из истории коммуникаций
+hb2 as
+(select hb.*,
+        row_number() over(partition by campaign_id, channel order by dt desc) as rn
+from hb)
+
+select distinct nc.*,
+                case when --определение статуса отправки
+                     nc.next_planned_date_new != trunc(sysdate - 1)
+                     then 'Корректно не отправлено' --кампания не должна запускаться, все корректно
+                     else 
+                       case when hb2.campaign_id is null
+                         or hb2.dt != trunc(sysdate - 1)
+                     then 'Не отправлено' --не отправилась по плану
+                     else 'Отправлено' end end as status, 
+               hb2.dt as last_sent_dt, --дата последней отправки из истории коммуникаций
+               case when
+                    nc.next_planned_date_new = trunc(sysdate - 1)
+                    then hb2.sent
+                      else null end as sent, --сколько в последний раз отправилось
+               case when
+                    nc.next_planned_date_new = trunc(sysdate - 1)
+                    then hb2.delivered
+                      else null end as delivered --сколько в последний раз доставлено
+                        
+            
+from nc 
+left join hb2
+on nc.camp_id = hb2.campaign_id
+and nc.channel = hb2.channel
+and hb2.rn = 1
+
